@@ -1,4 +1,4 @@
-from math import sin,cos
+from math import sin,cos,pi
 
 WIDTH = 160
 HEIGHT = 80
@@ -15,7 +15,7 @@ class Ship:
     def fd(self):
         self.x += cos(self.rot) * self.speed
         self.y += sin(self.rot) * self.speed
-        self.x, self.y = self.wrap(self.x, self.y)
+        self.x, self.y, self.rot = self.wrap(self.x, self.y, self.rot)
 
     def rt(self):
         self.rot += self.rot_speed
@@ -37,14 +37,8 @@ class Ship:
         self.draw_line(d,xa,ya,xb,yb)
 
 
-class ShipTorus(Ship):
-    def __init__(self):
-        super().__init__()
-
-    def wrap(self, x, y):
-        x %= WIDTH
-        y %= HEIGHT
-        return x,y
+    def wrap(self, x, y, rot):
+        return self.wrap_y(*self.wrap_x(x, y, rot))
 
     def draw_line(self, d, x1, y1, x2, y2):
         x1 = int(x1)
@@ -68,119 +62,117 @@ class ShipTorus(Ship):
             y_split = y1 + (y2 - y1) * (WIDTH - x1) / (x2 - x1)
             if x1 > WIDTH:
                 self.draw_line(d, x2, y2, WIDTH, y_split)
-                self.draw_line(d, x1-WIDTH, y1, 0, y_split)
+                a,b, _ = self.wrap_x(x1,y1,0)
+                _,c, _ = self.wrap_x(x1,y_split,0)
+                self.draw_line(d, a, b, 0, c)
                 return
             else:
                 self.draw_line(d, x1, y1, WIDTH, y_split)
-                self.draw_line(d, x2-WIDTH, y2, 0, y_split)
+                a,b, _ = self.wrap_x(x2,y2,0)
+                _,c, _ = self.wrap_x(x2,y_split,0)
+                self.draw_line(d, a, b, 0, c)
                 return
         if x1 < 0 or x2 < 0:
             y_split = y1 + (y2 - y1) * -x1 / (x2 - x1)
             if x1 < 0:
                 self.draw_line(d, x2, y2, 0, y_split)
-                self.draw_line(d, x1+WIDTH, y1, WIDTH, y_split)
+                a,b, _ = self.wrap_x(x1,y1,0)
+                _,c, _ = self.wrap_x(x1,y_split,0)
+                self.draw_line(d, a, b, WIDTH, c)
                 return
             else:
                 self.draw_line(d, x1, y1, 0, y_split)
-                self.draw_line(d, x2+WIDTH, y2, WIDTH, y_split)
+                a,b, _ = self.wrap_x(x2,y2,0)
+                _,c, _ = self.wrap_x(x2,y_split,0)
+                self.draw_line(d, a, b, WIDTH, c)
                 return
 
         if y1 > HEIGHT or y2 > HEIGHT:
             x_split = x1 + (x2 - x1) * (HEIGHT - y1) / (y2 - y1)
             if y1 > HEIGHT:
                 self.draw_line(d, x2, y2, x_split, HEIGHT)
-                self.draw_line(d, x1, y1-HEIGHT, x_split, 0)
+                a,b, _ = self.wrap_y(x1,y1,0)
+                c,_, _ = self.wrap_y(x_split,y1,0)
+                self.draw_line(d, a, b, c, 0)
                 return
             else:
                 self.draw_line(d, x1, y1, x_split, HEIGHT)
-                self.draw_line(d, x2, y2-HEIGHT, x_split,0)
+                a,b, _ = self.wrap_y(x2,y2,0)
+                c,_, _ = self.wrap_y(x_split,y2,0)
+                self.draw_line(d, a, b, c, 0)
                 return
         if y1 < 0 or y2 < 0:
             x_split = x1 + (x2 - x1) * -y1 / (y2 - y1)
             if y1 < 0:
                 self.draw_line(d, x2, y2, x_split, 0)
-                self.draw_line(d, x1, y1+HEIGHT, x_split, HEIGHT)
+                a,b, _ = self.wrap_y(x1,y1,0)
+                c,_, _ = self.wrap_y(x_split,y1,0)
+                self.draw_line(d, a, b, c, HEIGHT)
                 return
             else:
                 self.draw_line(d, x1, y1, x_split, 0)
-                self.draw_line(d, x2, y2+HEIGHT, x_split, HEIGHT)
+                a,b, _ = self.wrap_y(x2,y2,0)
+                c,_, _ = self.wrap_y(x_split,y2,0)
+                self.draw_line(d, a, b, c, HEIGHT)
                 return
 
         d.line(x1, y1, x2, y2)
+
+
+class ShipTorus(Ship):
+    def __init__(self):
+        super().__init__()
+
+    def wrap_x(self, x, y, rot):
+        return x%WIDTH, y, rot
+
+    def wrap_y(self, x, y, rot):
+        return x, y%HEIGHT, rot
 
 class ShipKlein(Ship):
     def __init__(self):
         super().__init__()
 
-    def wrap(self, x, y):
+    def wrap_x(self, x, y, rot):
         while x > WIDTH:
             x -= WIDTH
             y = HEIGHT-y
             rot *= -1
-        y %= HEIGHT
-        return x,y
+        while x < 0:
+            x += WIDTH
+            y = HEIGHT-y
+            rot *= -1
+        return x, y, rot
 
-    def draw_line(self, d, x1, y1, x2, y2):
-        x1 = int(x1)
-        x2 = int(x2)
-        y1 = int(y1)
-        y2 = int(y2)
-        while x1 < 0 and x2 < 0:
-            x1 += WIDTH
-            x2 += WIDTH
-        while x1 > WIDTH and x2 > WIDTH:
-            x1 -= WIDTH
-            x2 -= WIDTH
-        while y1 < 0 and y2 < 0:
-            y1 += HEIGHT
-            y2 += HEIGHT
-        while y1 > HEIGHT and y2 > HEIGHT:
-            y1 -= HEIGHT
-            y2 -= HEIGHT
+    def wrap_y(self, x, y, rot):
+        return x, y%HEIGHT, rot
 
-        if x1 > WIDTH or x2 > WIDTH:
-            y_split = y1 + (y2 - y1) * (WIDTH - x1) / (x2 - x1)
-            if x1 > WIDTH:
-                self.draw_line(d, x2, y2, WIDTH, y_split)
-                self.draw_line(d, x1-WIDTH, y1, 0, y_split)
-                return
-            else:
-                self.draw_line(d, x1, y1, WIDTH, y_split)
-                self.draw_line(d, x2-WIDTH, y2, 0, y_split)
-                return
-        if x1 < 0 or x2 < 0:
-            y_split = y1 + (y2 - y1) * -x1 / (x2 - x1)
-            if x1 < 0:
-                self.draw_line(d, x2, y2, 0, y_split)
-                self.draw_line(d, x1+WIDTH, y1, WIDTH, y_split)
-                return
-            else:
-                self.draw_line(d, x1, y1, 0, y_split)
-                self.draw_line(d, x2+WIDTH, y2, WIDTH, y_split)
-                return
 
-        if y1 > HEIGHT or y2 > HEIGHT:
-            x_split = x1 + (x2 - x1) * (HEIGHT - y1) / (y2 - y1)
-            if y1 > HEIGHT:
-                self.draw_line(d, x2, y2, x_split, HEIGHT)
-                self.draw_line(d, x1, y1-HEIGHT, x_split, 0)
-                return
-            else:
-                self.draw_line(d, x1, y1, x_split, HEIGHT)
-                self.draw_line(d, x2, y2-HEIGHT, x_split,0)
-                return
-        if y1 < 0 or y2 < 0:
-            x_split = x1 + (x2 - x1) * -y1 / (y2 - y1)
-            if y1 < 0:
-                self.draw_line(d, x2, y2, x_split, 0)
-                self.draw_line(d, x1, y1+HEIGHT, x_split, HEIGHT)
-                return
-            else:
-                self.draw_line(d, x1, y1, x_split, 0)
-                self.draw_line(d, x2, y2+HEIGHT, x_split, HEIGHT)
-                return
+class ShipRPP(Ship):
+    def __init__(self):
+        super().__init__()
 
-        d.line(x1, y1, x2, y2)
+    def wrap_x(self, x, y, rot):
+        while x > WIDTH:
+            x -= WIDTH
+            y = HEIGHT-y
+            rot *= -1
+        while x < 0:
+            x += WIDTH
+            y = HEIGHT-y
+            rot *= -1
+        return x, y, rot
+
+    def wrap_y(self, x, y, rot):
+        while y > HEIGHT:
+            y -= HEIGHT
+            x = WIDTH-x
+            rot = pi-rot
+        while y < 0:
+            y += HEIGHT
+            x = WIDTH-x
+            rot = pi-rot
+        return x, y, rot
 
 import display
 import buttons
@@ -188,8 +180,10 @@ import utime
 d = display.open()
 
 selected = 0
-surfaces = ["Torus","Klein bottle"]
-ships = [ShipTorus,ShipKlein]
+surfaces = ["Torus",
+            "Klein bttl",
+            "R proj pln"]
+ships = [ShipTorus,ShipKlein,ShipRPP]
 
 while True:
     text = ""
